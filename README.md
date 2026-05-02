@@ -28,7 +28,7 @@
 
 ## 使用说明
 获取模板有两种方式（二选一）：
-- **Fork 仓库**（推荐）：方便后续通过 Git 跟踪更新。
+- **Fork / Clone 仓库（推荐）**：可以获取最新版本的模板，优先推荐 通过 Fork 使用，方便后续通过 Git 跟踪更新。
 - **下载 Release**：直接下载 [最新 Release 版本](https://github.com/1195343015/nwputhesis/releases/latest)。
 
 - 非 Windows 系统用户需要从仓库中自行下载 Windows 字体。

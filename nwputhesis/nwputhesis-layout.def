@@ -164,7 +164,10 @@
 \nwpu_if_graduate:TF{%
     \DefineBibliographyStrings{english}{in={}}%
     \DefineBibliographyStrings{english}{incn={}}%
-}{}
+}{%
+    \DefineBibliographyStrings{english}{in={见\addcolon\space}}%
+    \DefineBibliographyStrings{english}{in={In\addcolon\space}}%
+}
 %%-----------------------------------------------------------------------------%
 \RequirePackage{enumitem}                                   % 列表格式控制
 \setlist{nosep}                                             % 消除间距
