@@ -4,7 +4,7 @@
 \section{数据集及构建补充材料}
 \label{app:dataset-construction}
 
-本附录补充 UAV-DualCog 测试基准的数据规模、任务结构和构建流程。正文第3章集中说明双认知任务设计、四阶段工具链与实验评测，本附录进一步给出补充材料中用于复核的结构化信息，使数据集构建过程、任务协议和实现入口之间形成可追溯关系。
+本附录补充 UAV-DualCog 测试基准的数据规模、任务结构和构建流程。
 
 \begin{table}[htbp]
     \centering
@@ -65,7 +65,7 @@
 
 \subsection{构建工具链可视化工作台界面}
 
-为补充正文第3章对阶段2、阶段3和阶段4实现过程的说明，本节给出数据构建 Web 工作台中的代表性界面截图。该工作台用于人工复核、任务生成、数据浏览和指标检查等交互环节；批量生成与导出仍由命令行工具链统一调度。界面截图主要说明各阶段的可视化复核与质量控制方式，而不作为实验结果数据来源。
+为补充正文第3章对阶段2、阶段3和阶段4实现过程的说明，本节给出数据构建 Web 工作台中的代表性界面截图。该工作台用于人工复核、任务定义、任务生成、数据浏览、实验调度和指标检查等交互环节；批量生成与导出仍由命令行工具链统一调度。为避免重复展示，本节省略布局和信息结构高度相似的候选复核、单样本结果翻页等界面，仅保留能够体现不同构建环节职责的页面截图。界面截图主要说明各阶段的可视化复核与质量控制方式，而不作为实验结果数据来源。
 
 \begin{figure}[!htbp]
     \centering
@@ -78,6 +78,15 @@
 
 \begin{figure}[!htbp]
     \centering
+    \includegraphics[width=\textwidth]{fig_app_stage3_behavior_library.png}
+    \caption{阶段3飞行行为库配置工作台界面}
+    \label{fig:app-stage3-behavior-library}
+\end{figure}
+
+\autoref{fig:app-stage3-behavior-library} 展示了阶段3的飞行行为库界面。左侧列出复合行为和原子行为定义，右侧展示所选行为的参数范围、默认值、相机模式和生成说明。该界面使复合行为、原子行为和轨迹参数之间的关系显式化，有助于检查层次化飞行模式是否符合视频任务设计，并为后续 Mission Generation 页面提供可复用的行为模板。
+
+\begin{figure}[!htbp]
+    \centering
     \includegraphics[width=\textwidth]{fig_app_stage3_mission_generation.png}
     \caption{阶段3视频任务 Mission Generation 工作台界面}
     \label{fig:app-stage3-mission-generation}
@@ -87,12 +96,57 @@
 
 \begin{figure}[!htbp]
     \centering
+    \includegraphics[width=\textwidth]{fig_app_stage3_dataset_browser.png}
+    \caption{阶段3视频任务样本浏览与证据核查界面}
+    \label{fig:app-stage3-dataset-browser}
+\end{figure}
+
+\autoref{fig:app-stage3-dataset-browser} 展示了阶段3生成后的样本浏览界面。左侧按照样本编号、任务类型、难度和地标编号列出任务清单，右侧给出样本级元数据、地标参考图像、飞行描述、视频规格和证据字段。该界面用于检查视频任务是否同时包含语义问题、地标视觉证据、行为描述和时间监督信息，避免任务清单与媒体文件、参考图像或标注区间脱节。
+
+\begin{figure}[!htbp]
+    \centering
+    \includegraphics[width=\textwidth]{fig_app_stage3_metrics.png}
+    \caption{阶段3视频任务指标汇总工作台界面}
+    \label{fig:app-stage3-metrics}
+\end{figure}
+
+\autoref{fig:app-stage3-metrics} 展示了阶段3的指标汇总界面。该界面按照任务类型、飞行模式、难度和模型运行结果聚合主要指标，并保留实验矩阵用于交叉检查。它对应正文中视频任务评测所需的复合行为识别、原子行为识别、地标可见次数和时间区间定位等指标，是从样本级输出过渡到整体实验分析的重要核查入口。
+
+\begin{figure}[!htbp]
+    \centering
     \includegraphics[width=\textwidth]{fig_app_stage4_task_generation.png}
     \caption{阶段4图像 QA 任务生成工作台界面}
     \label{fig:app-stage4-task-generation}
 \end{figure}
 
-\autoref{fig:app-stage4-task-generation} 展示了阶段4图像任务生成界面。该界面按场景、任务类型、难度、地标类别和采样数量组织图像 QA 样本生成，右侧同时给出当前场景可用地标、任务可用性和最新实验摘要。该设计便于在生成前检查地标是否支持四类图像任务，在生成后继续切换到数据浏览、实验、结果和指标页面，核对参考图像、查询图像、候选选项和目标框监督是否一致。
+\autoref{fig:app-stage4-task-generation} 展示了阶段4图像任务生成界面。该界面按场景、任务类型、难度、地标类别和采样数量组织图像 QA 样本生成，右侧同时给出当前场景可用地标、任务可用性和最新实验摘要。该设计便于在生成前检查地标是否支持四类图像任务。
+
+\begin{figure}[!htbp]
+    \centering
+    \includegraphics[width=\textwidth]{fig_app_stage4_data_browser.png}
+    \caption{阶段4图像任务样本浏览与提示词核查界面}
+    \label{fig:app-stage4-data-browser}
+\end{figure}
+
+\autoref{fig:app-stage4-data-browser} 展示了阶段4生成后的图像任务浏览界面。左侧为任务清单和任务组合统计，右侧同步展示样本摘要、系统提示词、用户提示词、候选选项和目标框字段。该界面用于核查参考图像、查询图像、候选答案、提示词协议和目标框监督是否一致，尤其适合检查自我状态认知任务和环境情况认知任务是否遵循同一输出契约。
+
+\begin{figure}[!htbp]
+    \centering
+    \includegraphics[width=\textwidth]{fig_app_stage4_experiments.png}
+    \caption{阶段4图像任务实验调度工作台界面}
+    \label{fig:app-stage4-experiments}
+\end{figure}
+
+\autoref{fig:app-stage4-experiments} 展示了阶段4图像任务的实验调度界面。该界面统一设置样本清单、上传分辨率、JPEG 压缩质量、并发数、超时限制和待评测模型，并在右侧显示实验作业状态。
+
+\begin{figure}[!htbp]
+    \centering
+    \includegraphics[width=\textwidth]{fig_app_stage4_metrics.png}
+    \caption{阶段4图像任务指标汇总工作台界面}
+    \label{fig:app-stage4-metrics}
+\end{figure}
+
+\autoref{fig:app-stage4-metrics} 展示了阶段4图像任务指标汇总界面。该界面从样本级输出中聚合解析成功率、选项准确率、BBox Acc@0.5、BBox mIoU 和平均延迟，并进一步按照认知分支、任务类型和难度分组。该页面对应正文中图像任务实验表格的指标来源，也便于发现某一任务分支或难度设置下的系统性弱点。
 
 \subsection{四阶段构建流程伪代码}
 
@@ -311,11 +365,11 @@ assign remaining samples to train split
 dump JSONL files and integrity report
 \end{verbatim}
 
-该构建方式保证训练样本在任务类型、难度等级和双认知分组上保持均衡，同时保证训练集与测试集在场景层面隔离。训练集没有引入视频样本，因此第4章的视频结果被解释为跨媒介迁移检验，而不是视频任务的直接监督收益。
+该构建方式保证训练样本在任务类型、难度等级和双认知分组上保持均衡，同时保证训练集与测试集在场景层面隔离。
 \section{能力优化实现补充材料}
 \label{app:optimization-entry}
 
-第4章正文保留能力优化方法、训练流程概述和任务级评测结果。本附录补充训练环境、运行记录、实现入口、训练流程伪代码、完整性核查逻辑和奖励函数关键片段，用于说明方法已经落实为可执行训练链路。
+本附录补充第4章能力优化训练环境、运行记录、实现入口、训练流程伪代码、完整性核查逻辑和奖励函数关键片段。
 
 \subsection{训练环境与运行记录}
 
@@ -396,7 +450,7 @@ Stage 2: Joint GRPO
 
 \subsection{正式训练完整性核查逻辑}
 
-正式训练结束后，系统对运行目录进行完整性核查，重点确认数据快照、训练计划、日志文件、指标文件、checkpoint、LoRA adapter、合并模型和评测入口是否完整。该核查不用于证明能力提升，而用于保证第4章报告的训练过程能够追溯到明确的数据版本、参数配置和模型产物。
+正式训练结束后，系统对运行目录进行完整性核查，重点确认数据快照、训练计划、日志文件、指标文件、checkpoint、LoRA adapter、合并模型和评测入口是否完整。
 
 \begin{verbatim}
 Input: training run directory
@@ -446,5 +500,4 @@ def total_reward(pred_text, gt_answer, gt_bbox_norm, weights):
     )
 \end{verbatim}
 
-该实现与第4章中的奖励公式一一对应，保证能力优化目标并非停留在方法设想层面，而是直接进入了最终训练与任务级评测流程。
 \end{thesisappendix}
