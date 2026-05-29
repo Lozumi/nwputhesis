@@ -6,7 +6,7 @@
 
 \subsection{构建目标与场景隔离}
 
-第3章的评测结果表明，当前多模态大模型在 UAV-DualCog 上的主要问题是难以同时保持答案正确、证据可靠、跨媒介稳定以及自我状态认知与环境情况认知之间的协调发展。尤其是在图像任务中，模型常表现为选项判断相对较强、空间证据明显偏弱；在双认知维度上，自我状态认知长期落后于环境情况认知。因此，本文在测试基准之外进一步构建了面向后训练优化的图像任务训练集 UAV-DualCog-Train，并据此设计“监督微调+联合 GRPO”的能力优化方法。
+第3章的评测结果表明，当前多模态大模型在 UAV-DualCog 上的主要问题是难以同时保持答案正确、证据可靠、跨媒介稳定以及自我状态认知与环境情况认知之间的协调发展。尤其是在图像任务中，模型常表现为选项判断相对较强、空间证据明显偏弱；在双认知维度上，自我状态认知长期落后于环境情况认知。因此，本文在测试基准之外进一步构建了面向后训练优化的图像任务训练集 UAV-DualCog-Train，并据此设计“监督微调（Supervised Fine-Tuning, SFT）+联合群组相对策略优化（Group Relative Policy Optimization, GRPO）”的能力优化方法。
 
 UAV-DualCog-Train 使用与测试集严格隔离的训练场景构建，包含 \texttt{env\_1}、\texttt{env\_3}、\texttt{env\_5}、\texttt{env\_15}、\texttt{env\_18} 和 \texttt{env\_22} 六个场景，具体训练/测试场景划分见\autoref{tab:app-scene-split}。训练样本覆盖地标参照位置推理、未来观察预测、自我参照位置推理和地标驱动动作决策四类任务，对应自我状态认知与环境情况认知两条能力主线。当前优化阶段优先从图像任务起步，主要基于两点考虑：其一，第3章已经表明图像侧最集中地暴露了“语义判断与空间证据脱节”的问题；其二，图像任务适合将“离散答案+目标框证据”统一写成结构化监督目标，为后续监督微调和奖励优化共用同一套输出解析接口提供便利。
 
@@ -75,18 +75,18 @@ UAV-DualCog-Train-V1 的规模为
 
 \section{能力优化方法}
 
-\subsection{多模态监督微调}
+\subsection{多模态监督微调（SFT）}
 
-能力优化的第一阶段采用多模态监督微调。该阶段的目标是先为模型建立稳定的任务内输出接口，使其学会围绕 UAV-DualCog 的图像任务生成结构化的“答案+目标框”结果。在训练实现中，图像会由 \texttt{AutoProcessor} 编码为视觉张量参与前向和反向传播。因此，SFT 阶段的核心作用是让模型在多图像输入下稳定输出可解析的结构化答案。
+能力优化的第一阶段采用多模态监督微调（Supervised Fine-Tuning, SFT）。该阶段的目标是先为模型建立稳定的任务内输出接口，使其学会围绕 UAV-DualCog 的图像任务生成结构化的“答案+目标框”结果。在训练实现中，图像会由 \texttt{AutoProcessor} 编码为视觉张量参与前向和反向传播。因此，SFT 阶段的核心作用是让模型在多图像输入下稳定输出可解析的结构化答案。
 
 本文选择 \texttt{Qwen/Qwen3.5-4B} 作为当前能力优化的基座模型，主要基于三方面考虑。第一，第3章结果显示 Qwen 3.5-4B 已具备一定图像空间问答基础，其图像总体准确率为 39.0\%。第二，该模型在视频总体准确率和自我状态认知上仍有明显短板，具备清晰的优化空间。第三，4B 规模适合在现有四张 RTX 4090 的算力条件下进行多轮参数高效实验，并便于后续补充消融研究。
 
-在方法上，SFT 阶段使用 \texttt{AutoModelForImageTextToText}、\texttt{AutoProcessor} 和 \texttt{trl.SFTTrainer} 完成多模态 LoRA 微调。LoRA 仅在注意力和前馈网络的关键投影层上注入可训练低秩适配器，使模型在有限显存与训练步数下完成任务适配。训练时采用 \texttt{completion\_only\_loss}，即只对助手端的 JSON 输出部分计算损失，从而把格式学习、答案学习与证据学习统一绑定到同一训练接口中。为兼顾图像细节和显存稳定性，系统在加载训练图像时引入 \texttt{max\_image\_side} 控制项，使用 720 作为长边上限，以保留更充分的空间细节。具体训练入口、配置与关键代码见\autoref{app:optimization-entry}。
+在方法上，SFT 阶段使用 \texttt{AutoModelForImageTextToText}、\texttt{AutoProcessor} 和 \texttt{trl.SFTTrainer} 完成多模态低秩适配（Low-Rank Adaptation, LoRA）微调。LoRA 仅在注意力和前馈网络的关键投影层上注入可训练低秩适配器，使模型在有限显存与训练步数下完成任务适配。训练时采用 \texttt{completion\_only\_loss}，即只对助手端的 JSON 输出部分计算损失，从而把格式学习、答案学习与证据学习统一绑定到同一训练接口中。为兼顾图像细节和显存稳定性，系统在加载训练图像时引入 \texttt{max\_image\_side} 控制项，使用 720 作为长边上限，以保留更充分的空间细节。具体训练入口、配置与关键代码见\autoref{app:optimization-entry}。
 
 
-\subsection{联合GRPO优化}
+\subsection{联合群组相对策略优化（GRPO）}
 
-在完成结构化监督学习之后，本文进一步引入联合 GRPO 进行第二阶段优化。该阶段直接在 SFT 检查点基础上，以统一奖励函数同时约束输出格式、离散答案和目标框质量。多模态训练链路已经能够稳定支持真实图像输入和 JSON 输出解析，因此奖励优化可以围绕最终任务目标进行联合校正。
+在完成结构化监督学习之后，本文进一步引入联合群组相对策略优化（Group Relative Policy Optimization, GRPO）进行第二阶段优化。该阶段直接在 SFT 检查点基础上，以统一奖励函数同时约束输出格式、离散答案和目标框质量。多模态训练链路已经能够稳定支持真实图像输入和 JSON 输出解析，因此奖励优化可以围绕最终任务目标进行联合校正。
 
 联合 GRPO 的总体奖励形式为
 \begin{equation}
@@ -122,7 +122,7 @@ R = w_f R_{\text{format}} + w_s R_{\text{mcq}} + w_b R_{\text{bbox}},
 
 \subsection{训练环境与正式流程}
 
-能力优化实验在一台本地服务器上进行，硬件环境包括 \(2\times\) AMD EPYC 7452 CPU、503 GiB 内存和 \(4\times\) NVIDIA GeForce RTX 4090 GPU。训练过程采用 PyTorch、Transformers、PEFT 和 TRL 等框架完成单机多卡多模态 LoRA SFT 与联合 GRPO 优化，详细环境配置见\autoref{tab:app-train-hardware}。
+能力优化实验在一台本地服务器上进行，硬件环境包括 \(2\times\) AMD EPYC 7452 CPU、503 GiB 内存和 \(4\times\) NVIDIA GeForce RTX 4090 GPU。训练过程采用 PyTorch、Transformers、PEFT 和 TRL 等框架完成单机多卡多模态 LoRA-SFT 与联合 GRPO 优化，详细环境配置见\autoref{tab:app-train-hardware}。
 
 本文将训练流程组织为“数据准备、多模态 SFT、联合 GRPO、任务级评测”四个环节。首先，将 UAV-DualCog-Train 图像任务清单转换为 train/valid JSONL，并保留提示词、真实图像路径、标准 JSON completion 和目标框辅助字段；其次，SFT 阶段从 Qwen 3.5 4B 初始化，通过真实图像输入和 completion-only loss 学习稳定的结构化输出；再次，联合 GRPO 阶段以 SFT 模型为初始化模型，对同一输入生成多候选答案，并依据格式、答案和目标框奖励进行组相对优化；最后，将优化模型接入 UAV-DualCog-V1 测试集，评估图像任务直接收益和视频任务迁移效果。训练运行记录和完整性核查结果见\autoref{tab:app-train-run-summary}，训练入口、流程伪代码和奖励实现见\autoref{app:optimization-entry}。
 
@@ -131,7 +131,7 @@ R = w_f R_{\text{format}} + w_s R_{\text{mcq}} + w_b R_{\text{bbox}},
 
 \subsection{优化模型任务级评测结果}
 
-在训练完成后，本文将原始 Qwen 3.5 4B 模型作为 Base，将联合 GRPO 后得到的模型作为优化模型，在 UAV-DualCog-V1 的 12 个测试场景上进行统一评测。训练集仅来自与测试集场景隔离的图像任务，因此图像任务结果用于衡量优化方法的直接收益，视频任务结果用于观察图像侧证据感知训练是否能够迁移到时间证据推理中。
+在训练完成后，本文将原始 Qwen 3.5 4B 模型作为原始模型，将联合 GRPO 后得到的模型作为优化模型，在 UAV-DualCog-V1 的 12 个测试场景上进行统一评测。训练集仅来自与测试集场景隔离的图像任务，因此图像任务结果用于衡量优化方法的直接收益，视频任务结果用于观察图像侧证据感知训练是否能够迁移到时间证据推理中。
 
 
 \begin{table}[htbp]
@@ -148,8 +148,8 @@ R = w_f R_{\text{format}} + w_s R_{\text{mcq}} + w_b R_{\text{bbox}},
          &  & \multicolumn{3}{c}{地标参照位置推理} & \multicolumn{3}{c}{未来观察预测} & \multicolumn{3}{c}{自我参照位置推理} & \multicolumn{3}{c}{地标驱动动作决策} \\
          &  & Acc & BBox Acc@0.5 & mIoU & Acc & BBox Acc@0.5 & mIoU & Acc & BBox Acc@0.5 & mIoU & Acc & BBox Acc@0.5 & mIoU \\
         \midrule
-        Base & 38.99\% & 30.86\% & 12.79\% & 23.14\% & 30.18\% & 11.23\% & 21.69\% & 47.46\% & 6.74\% & 17.71\% & 47.46\% & 6.35\% & 17.96\% \\
-        GRPO & 59.77\% & 41.41\% & 74.90\% & 61.91\% & 37.21\% & 66.41\% & 57.36\% & 78.91\% & 52.64\% & 46.23\% & 81.54\% & 50.20\% & 45.63\% \\
+        原始模型 & 38.99\% & 30.86\% & 12.79\% & 23.14\% & 30.18\% & 11.23\% & 21.69\% & 47.46\% & 6.74\% & 17.71\% & 47.46\% & 6.35\% & 17.96\% \\
+        优化模型 & 59.77\% & 41.41\% & 74.90\% & 61.91\% & 37.21\% & 66.41\% & 57.36\% & 78.91\% & 52.64\% & 46.23\% & 81.54\% & 50.20\% & 45.63\% \\
         \bottomrule
       \end{tabular}%
     }
@@ -168,8 +168,8 @@ R = w_f R_{\text{format}} + w_s R_{\text{mcq}} + w_b R_{\text{bbox}},
         模型 & 全局准确率 & \multicolumn{3}{c}{复合行为识别} & \multicolumn{3}{c}{原子行为识别} & \multicolumn{3}{c}{地标可见性推理} \\
          &  & Acc/F1 & F1@0.5 & Mean tIoU & Acc/F1 & F1@0.5 & Mean tIoU & Count Acc & F1@0.5 & Mean tIoU \\
         \midrule
-        Base & 16.75\% & 6.37\% & 1.31\% & 1.40\% & 10.00\% & 3.04\% & 2.82\% & 33.89\% & 45.18\% & 51.99\% \\
-        GRPO & 26.67\% & 24.48\% & 26.90\% & 30.05\% & 24.17\% & 49.08\% & 43.96\% & 31.35\% & 24.23\% & 29.74\% \\
+        原始模型 & 16.75\% & 6.37\% & 1.31\% & 1.40\% & 10.00\% & 3.04\% & 2.82\% & 33.89\% & 45.18\% & 51.99\% \\
+        优化模型 & 26.67\% & 24.48\% & 26.90\% & 30.05\% & 24.17\% & 49.08\% & 43.96\% & 31.35\% & 24.23\% & 29.74\% \\
         \bottomrule
       \end{tabular}%
     }
@@ -182,7 +182,7 @@ R = w_f R_{\text{format}} + w_s R_{\text{mcq}} + w_b R_{\text{bbox}},
     \small
     \begin{tabularx}{\textwidth}{@{}X>{\centering\arraybackslash}p{2.0cm}>{\centering\arraybackslash}p{2.0cm}>{\centering\arraybackslash}p{2.0cm}@{}}
         \toprule
-        指标 & Base & GRPO & 提升值 \\
+        指标 & 原始模型 & 优化模型 & 提升值 \\
         \midrule
         图像选项准确率 & 38.99\% & 59.77\% & +20.78 pp \\
         图像 BBox Acc@0.5 & 9.27\% & 61.04\% & +51.76 pp \\
@@ -218,7 +218,7 @@ R = w_f R_{\text{format}} + w_s R_{\text{mcq}} + w_b R_{\text{bbox}},
         \toprule
         认知分支 & \multicolumn{2}{c}{选项准确率} & \multicolumn{2}{c}{BBox Acc@0.5} & \multicolumn{2}{c}{mIoU} \\
         \cmidrule(lr){2-3}\cmidrule(lr){4-5}\cmidrule(l){6-7}
-        & Base & GRPO & Base & GRPO & Base & GRPO \\
+        & 原始模型 & 优化模型 & 原始模型 & 优化模型 & 原始模型 & 优化模型 \\
         \midrule
         自我状态认知 & 30.52\% & 39.31\% & 11.99\% & 70.65\% & 22.41\% & 59.64\% \\
         环境情况认知 & 47.46\% & 80.22\% & 6.54\% & 51.42\% & 17.83\% & 45.93\% \\
@@ -237,7 +237,7 @@ R = w_f R_{\text{format}} + w_s R_{\text{mcq}} + w_b R_{\text{bbox}},
         \toprule
         任务类型 & \multicolumn{2}{c}{选项准确率} & \multicolumn{2}{c}{BBox Acc@0.5} & \multicolumn{2}{c}{mIoU} \\
         \cmidrule(lr){2-3}\cmidrule(lr){4-5}\cmidrule(l){6-7}
-        & Base & GRPO & Base & GRPO & Base & GRPO \\
+        & 原始模型 & 优化模型 & 原始模型 & 优化模型 & 原始模型 & 优化模型 \\
         \midrule
         地标参照位置推理 & 30.86\% & 41.41\% & 12.79\% & 74.90\% & 23.14\% & 61.91\% \\
         未来观察预测 & 30.18\% & 37.21\% & 11.23\% & 66.41\% & 21.69\% & 57.36\% \\
@@ -269,7 +269,7 @@ R = w_f R_{\text{format}} + w_s R_{\text{mcq}} + w_b R_{\text{bbox}},
         \toprule
         任务类型 & \multicolumn{2}{c}{语义/计数主指标} & \multicolumn{2}{c}{Temporal F1@0.5} & \multicolumn{2}{c}{Mean tIoU} \\
         \cmidrule(lr){2-3}\cmidrule(lr){4-5}\cmidrule(l){6-7}
-        & Base & GRPO & Base & GRPO & Base & GRPO \\
+        & 原始模型 & 优化模型 & 原始模型 & 优化模型 & 原始模型 & 优化模型 \\
         \midrule
         复合自我行为识别 & 6.37\% & 24.48\% & 1.31\% & 26.90\% & 1.40\% & 30.05\% \\
         原子自我行为识别 & 10.00\% & 24.17\% & 3.04\% & 49.08\% & 2.82\% & 43.96\% \\
@@ -304,8 +304,8 @@ R = w_f R_{\text{format}} + w_s R_{\text{mcq}} + w_b R_{\text{bbox}},
         \toprule
         模型 & 图像全局准确率 & 视频全局准确率 & 图像-视频差值 \\
         \midrule
-        Base & 38.99\% & 16.75\% & 22.24 pp \\
-        GRPO & 59.77\% & 26.67\% & 33.10 pp \\
+        原始模型 & 38.99\% & 16.75\% & 22.24 pp \\
+        优化模型 & 59.77\% & 26.67\% & 33.10 pp \\
         \bottomrule
     \end{tabularx}
 \end{table}
@@ -318,4 +318,4 @@ R = w_f R_{\text{format}} + w_s R_{\text{mcq}} + w_b R_{\text{bbox}},
 
 本章围绕第3章暴露出的能力短板，系统介绍了 UAV-DualCog 的能力优化方法与实验结果。首先，本文构建了与测试场景严格隔离的 UAV-DualCog-Train 图像任务训练集，并将其转换为包含提示词、真实图像路径和标准 JSON completion 的多模态训练记录。该训练集在任务类型、难度等级和双认知分组上保持平衡，为模型学习“答案+目标框”的结构化输出提供了数据基础。
 
-其次，本文完成了基于 Qwen 3.5 4B 的两阶段能力优化流程：多模态 LoRA SFT 用于建立稳定的结构化答案输出能力，联合 GRPO 则通过格式奖励、答案奖励和目标框奖励进一步强化语义-证据一致性。训练过程完整产出可评测模型。任务级评测显示，优化模型在图像任务上获得显著直接收益，图像选项准确率、BBox Acc@0.5 和 mIoU 分别提升 20.78、51.76 和 32.66 个百分点；在视频任务上，全局准确率提升 9.91 个百分点，但收益主要集中在自我行为识别和时间定位，环境可见性推理仍出现下降。由此可见，证据感知图像训练能够有效补强图像双认知能力并产生部分跨媒介迁移，但可靠无人机多模态系统仍需要进一步提升视频时序整合和跨媒介证据协同能力。
+其次，本文完成了基于 Qwen 3.5 4B 的两阶段能力优化流程：多模态 LoRA-SFT 用于建立稳定的结构化答案输出能力，联合 GRPO 则通过格式奖励、答案奖励和目标框奖励进一步强化语义-证据一致性。训练过程完整产出可评测模型。任务级评测显示，优化模型在图像任务上获得显著直接收益，图像选项准确率、BBox Acc@0.5 和 mIoU 分别提升 20.78、51.76 和 32.66 个百分点；在视频任务上，全局准确率提升 9.91 个百分点，但收益主要集中在自我行为识别和时间定位，环境可见性推理仍出现下降。由此可见，证据感知图像训练能够有效补强图像双认知能力并产生部分跨媒介迁移，但可靠无人机多模态系统仍需要进一步提升视频时序整合和跨媒介证据协同能力。
