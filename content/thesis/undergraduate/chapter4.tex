@@ -10,13 +10,12 @@
 
 UAV-DualCog-Train 使用与测试集严格隔离的训练场景构建，包含 \texttt{env\_1}、\texttt{env\_3}、\texttt{env\_5}、\texttt{env\_15}、\texttt{env\_18} 和 \texttt{env\_22} 六个场景，具体训练/测试场景划分见\autoref{tab:app-scene-split}。训练样本覆盖地标参照位置推理、未来观察预测、自我参照位置推理和地标驱动动作决策四类任务，对应自我状态认知与环境情况认知两条能力主线。当前优化阶段优先从图像任务起步，主要基于两点考虑：其一，第3章已经表明图像侧最集中地暴露了“语义判断与空间证据脱节”的问题；其二，图像任务适合将“离散答案+目标框证据”统一写成结构化监督目标，为后续监督微调和奖励优化共用同一套输出解析接口提供便利。
 
-% 去除最后一列
 \begin{table}[htbp]
     \centering
     \caption{UAV-DualCog-Train-V1 训练场景与样本规模统计}
     \label{tab:train-scene-stats}
     \footnotesize
-    \begin{tabularx}{\textwidth}{@{}>{\centering\arraybackslash}p{2.1cm}>{\centering\arraybackslash}p{2.4cm}X@{}}
+    \begin{tabularx}{0.74\textwidth}{@{}>{\centering\arraybackslash}X>{\centering\arraybackslash}X>{\centering\arraybackslash}X@{}}
         \toprule
         场景编号 & 有效地标数 & 训练样本数\\
         \midrule
@@ -84,7 +83,6 @@ UAV-DualCog-Train-V1 的规模为
 
 在方法上，SFT 阶段使用 \texttt{AutoModelForImageTextToText}、\texttt{AutoProcessor} 和 \texttt{trl.SFTTrainer} 完成多模态 LoRA 微调。LoRA 仅在注意力和前馈网络的关键投影层上注入可训练低秩适配器，使模型在有限显存与训练步数下完成任务适配。训练时采用 \texttt{completion\_only\_loss}，即只对助手端的 JSON 输出部分计算损失，从而把格式学习、答案学习与证据学习统一绑定到同一训练接口中。为兼顾图像细节和显存稳定性，系统在加载训练图像时引入 \texttt{max\_image\_side} 控制项，使用 720 作为长边上限，以保留更充分的空间细节。具体训练入口、配置与关键代码见\autoref{app:optimization-entry}。
 
-% 根据训练集规模和正式训练参数，SFT 阶段的等效全局 batch 为 \(1 \times 4 \times 32 = 128\)，每个 epoch 约为 79 个优化步，总共训练 3 个 epoch，对应约 237 个优化步。SFT 阶段结束后，系统会保存 LoRA 适配器、训练日志、验证指标以及可直接部署的合并模型，为后续联合 GRPO 提供可直接加载的初始化模型。正文仅保留方法与参数口径，具体训练入口、配置与关键代码见\autoref{app:optimization-entry}。
 
 \subsection{联合GRPO优化}
 
@@ -120,62 +118,21 @@ R = w_f R_{\text{format}} + w_s R_{\text{mcq}} + w_b R_{\text{bbox}},
     \end{tabularx}
 \end{table}
 
-\autoref{tab:optimization-training-config} 给出了两阶段能力优化的关键参数。联合 GRPO 直接将格式、答案与空间证据纳入同一奖励函数，使训练目标与最终测试基准图像任务更加一致。与此同时，训练端还通过关闭思维展开型模板、限制最大生成长度和保留小批量组相对采样，降低长生成噪声对结构化奖励的干扰。相关奖励实现、伪代码和关键代码片段见\autoref{app:optimization-entry}。
+\autoref{tab:optimization-training-config} 给出了两阶段能力优化的关键参数。联合 GRPO 直接将格式、答案与空间证据纳入同一奖励函数，使训练目标与 UAV-DualCog 图像任务更加一致。与此同时，训练端还通过关闭思维展开型模板、限制最大生成长度和保留小批量组相对采样，降低长生成噪声对结构化奖励的干扰。相关奖励实现、伪代码和关键代码片段见\autoref{app:optimization-entry}。
 
-\subsection{训练环境、流程与工程验证}
+\subsection{训练环境与正式流程}
 
-能力优化实验在一台本地服务器上进行，硬件环境如\autoref{tab:train-hardware}所示。
+能力优化实验在一台本地服务器上进行，硬件环境包括 \(2\times\) AMD EPYC 7452 CPU、503 GiB 内存和 \(4\times\) NVIDIA GeForce RTX 4090 GPU。训练过程采用 PyTorch、Transformers、PEFT 和 TRL 等框架完成单机多卡多模态 LoRA SFT 与联合 GRPO 优化，详细环境配置见\autoref{tab:app-train-hardware}。
 
-\begin{table}[htbp]
-    \centering
-    \caption{能力优化实验训练环境}
-    \label{tab:train-hardware}
-    \small
-    \begin{tabularx}{\textwidth}{@{}>{\centering\arraybackslash}p{3.0cm}>{\centering\arraybackslash}X@{}}
-        \toprule
-        资源项 & 配置 \\
-        \midrule
-        CPU & \(2\times\) AMD EPYC 7452，合计 128 vCPUs \\
-        内存 & 503 GiB \\
-        GPU & \(4\times\) NVIDIA GeForce RTX 4090，单卡 24 GB 显存 \\
-        训练框架 & PyTorch、Transformers、PEFT、TRL \\
-        训练方式 & 单机多卡多模态 LoRA SFT + 联合 GRPO \\
-        \bottomrule
-    \end{tabularx}
-\end{table}
-
-% 不需要写小样本工程验证，直接写最终的流程即可。
-在工程组织上，本文将训练流程统一整理为“数据准备、SFT、Joint GRPO”三个连续阶段，并通过统一调度脚本对输入快照、日志目录、检查点目录和多卡启动方式进行管理。若训练前缺失训练集或验证集 JSONL 文件，系统会自动重新生成数据；若文件已存在，则会将当前使用的数据快照复制到本次运行目录中，确保后续能够准确追溯到对应训练数据版本。每个阶段结束后还会检查是否成功导出适配器与合并模型，避免后续流程建立在不完整中间产物之上。
-
-在正式全量训练之前，本文首先完成了针对新链路的小样本工程验证，确认真实图像加载、视觉编码、SFT 反向传播、GRPO 奖励计算、模型合并和产物落盘均可执行。正式训练完成后，本文进一步基于运行日志和产物目录进行完整性核查，确认 SFT 与 Joint GRPO 两个阶段均达到预设步数，并成功导出对应的适配器与合并模型。小样本验证与完整性核查逻辑见\autoref{app:optimization-entry}。
-
-\begin{table}[!htbp]
-    \centering
-    \caption{正式训练完成情况与核心过程指标}
-    \label{tab:train-run-summary}
-    \footnotesize
-    \setlength{\tabcolsep}{4pt}
-    \begin{tabularx}{\textwidth}{@{}p{1.9cm}>{\centering\arraybackslash}p{1.6cm}>{\centering\arraybackslash}p{1.6cm}>{\centering\arraybackslash}p{2.0cm}X@{}}
-        \toprule
-        阶段 & 完成步数 & 运行时间/h & 过程指标 & 说明 \\
-        \midrule
-        SFT & 237/237 & 4.05 & \makecell[c]{train loss\\0.6384} & 完成 3 个 epoch，验证集 \texttt{eval\_loss}=0.5666，图像长边上限为 720。 \\
-        Joint GRPO & 600/600 & 10.72 & \makecell[c]{tail-10 reward\\2.4016} & 奖励权重为 \((1.0,1.0,1.0)\)，后段奖励保持稳定，最终导出可评测权重。 \\
-        \bottomrule
-    \end{tabularx}
-\end{table}
-
-\autoref{tab:train-run-summary} 表明，两阶段训练均已完整结束。SFT 阶段使用约 4.05 小时完成 237 个优化步，并在验证集上获得 0.5666 的损失；Joint GRPO 则在约 10.72 小时内完成 600 个优化步，后 10 次记录的平均奖励为 2.4016，平均单步耗时约 49.60 秒。需要指出的是，SFT 与 GRPO 的损失函数定义并不相同，因此不同阶段之间的 loss 数值不适合直接横向比较，更合理的判断依据是各阶段是否稳定完成、权重产物是否完整，以及最终任务级评测结果是否得到改善。
+本文将训练流程组织为“数据准备、多模态 SFT、联合 GRPO、任务级评测”四个环节。首先，将 UAV-DualCog-Train 图像任务清单转换为 train/valid JSONL，并保留提示词、真实图像路径、标准 JSON completion 和目标框辅助字段；其次，SFT 阶段从 Qwen 3.5 4B 初始化，通过真实图像输入和 completion-only loss 学习稳定的结构化输出；再次，联合 GRPO 阶段以 SFT 模型为初始化模型，对同一输入生成多候选答案，并依据格式、答案和目标框奖励进行组相对优化；最后，将优化模型接入 UAV-DualCog-V1 测试集，评估图像任务直接收益和视频任务迁移效果。训练运行记录和完整性核查结果见\autoref{tab:app-train-run-summary}，训练入口、流程伪代码和奖励实现见\autoref{app:optimization-entry}。
 
 \FloatBarrier
 \section{优化效果评测和分析}
 
 \subsection{优化模型任务级评测结果}
 
-在训练完成后，本文将原始 Qwen 3.5 4B 模型作为 Base，将联合 GRPO 后得到的最终权重作为优化模型，在 UAV-DualCog-V1 的 12 个测试场景上进行统一评测。训练集仅来自与测试集场景隔离的图像任务，因此图像任务结果用于衡量优化方法的直接收益，视频任务结果用于观察图像侧证据感知训练是否能够迁移到时间证据推理中。
-% 为避免把中间训练阶段误作为最终结论，本节仅围绕 Base 与最终导出的 GRPO 权重模型展开分析；SFT 阶段仅作为训练路线的一部分，不单独进行结果解释。图像任务完整结果按四类任务展开，视频任务完整结果按复合行为、原子行为和地标可见性三类任务展开。
+在训练完成后，本文将原始 Qwen 3.5 4B 模型作为 Base，将联合 GRPO 后得到的模型作为优化模型，在 UAV-DualCog-V1 的 12 个测试场景上进行统一评测。训练集仅来自与测试集场景隔离的图像任务，因此图像任务结果用于衡量优化方法的直接收益，视频任务结果用于观察图像侧证据感知训练是否能够迁移到时间证据推理中。
 
-% \autoref{tab:optimization-image-full-results} 和 \autoref{tab:optimization-video-full-results} 中的全局准确率均采用不同任务 Acc 的算术平均计算。这样可以使结果解释直接对应任务级主指标。
 
 \begin{table}[htbp]
     \centering
@@ -231,7 +188,7 @@ R = w_f R_{\text{format}} + w_s R_{\text{mcq}} + w_b R_{\text{bbox}},
         图像 BBox Acc@0.5 & 9.27\% & 61.04\% & +51.76 pp \\
         图像 mIoU & 20.12\% & 52.78\% & +32.66 pp \\
         视频全局准确率 & 16.75\% & 26.67\% & +9.91 pp \\
-        视频时间 F1@0.5 均值 & 16.51\% & 33.40\% & +16.89 pp \\
+        视频 Temporal F1@0.5 均值 & 16.51\% & 33.40\% & +16.89 pp \\
         视频 Mean tIoU 均值 & 18.74\% & 34.58\% & +15.84 pp \\
         \bottomrule
     \end{tabularx}
@@ -246,8 +203,7 @@ R = w_f R_{\text{format}} + w_s R_{\text{mcq}} + w_b R_{\text{bbox}},
 
 \autoref{tab:optimization-image-full-results}、\autoref{tab:optimization-video-full-results}、\autoref{tab:optimization-overall-results} 和 \autoref{fig:optimization-overall-media-gain} 表明，优化模型在图像任务上获得了显著的直接收益：选项准确率从 38.99\% 提升到 59.77\%，说明模型对无人机场景中地标、视角和动作关系的离散判断能力明显增强；BBox Acc@0.5 从 9.27\% 提升到 61.04\%，mIoU 从 20.12\% 提升到 52.78\%，说明优化收益并不只体现在“选项判断正确”，还体现在能够把答案绑定到更可靠的空间证据上。该结果支持了第3章发现的图像侧语义与证据脱节问题。
 
-% 这里需要加强分析，为什么环境可见性计数和区间恢复下降
-视频任务也出现了跨媒介迁移收益。视频全局准确率从 16.75\% 提升到 26.67\%，时间 F1@0.5 均值从 16.51\% 提升到 33.40\%，Mean tIoU 均值从 18.74\% 提升到 34.58\%。这说明图像任务上的证据感知训练能够迁移到部分视频时间证据恢复。不过，迁移收益并不均匀：自我行为识别与时间定位显著提升，环境可见性计数和区间恢复下降。因此，本文将视频侧结果解释为“迁移分化”：图像侧训练增强了部分自我行为时间证据能力，但没有同步改善环境可见性时序推理。
+视频任务也出现了跨媒介迁移收益。视频全局准确率从 16.75\% 提升到 26.67\%，Temporal F1@0.5 均值从 16.51\% 提升到 33.40\%，Mean tIoU 均值从 18.74\% 提升到 34.58\%。这说明图像任务上的证据感知训练能够迁移到部分视频时间证据恢复。不过，迁移收益并不均匀：自我行为识别与时间定位显著提升，环境可见性计数和区间恢复下降。因此，本文将视频侧结果解释为“迁移分化”：图像侧训练增强了部分自我行为时间证据能力，但没有同步改善环境可见性时序推理。
 
 \subsection{图像任务直接提升分析}
 
@@ -311,7 +267,7 @@ R = w_f R_{\text{format}} + w_s R_{\text{mcq}} + w_b R_{\text{bbox}},
     \small
     \begin{tabularx}{\textwidth}{@{}X>{\centering\arraybackslash}p{1.55cm}>{\centering\arraybackslash}p{1.55cm}>{\centering\arraybackslash}p{1.55cm}>{\centering\arraybackslash}p{1.55cm}>{\centering\arraybackslash}p{1.55cm}>{\centering\arraybackslash}p{1.55cm}@{}}
         \toprule
-        任务类型 & \multicolumn{2}{c}{语义/计数主指标} & \multicolumn{2}{c}{时间 F1@0.5} & \multicolumn{2}{c}{时间 IoU} \\
+        任务类型 & \multicolumn{2}{c}{语义/计数主指标} & \multicolumn{2}{c}{Temporal F1@0.5} & \multicolumn{2}{c}{Mean tIoU} \\
         \cmidrule(lr){2-3}\cmidrule(lr){4-5}\cmidrule(l){6-7}
         & Base & GRPO & Base & GRPO & Base & GRPO \\
         \midrule
@@ -329,10 +285,13 @@ R = w_f R_{\text{format}} + w_s R_{\text{mcq}} + w_b R_{\text{bbox}},
     \label{fig:optimization-video-transfer}
 \end{figure}
 
-\autoref{tab:optimization-video-transfer-results} 和 \autoref{fig:optimization-video-transfer} 表明，视频侧迁移具有明显的认知分化。对于自我状态认知，复合自我行为识别的语义主指标从 6.37\% 提升到 24.48\%，时间 F1@0.5 从 1.31\% 提升到 26.90\%；原子自我行为识别的语义主指标从 10.00\% 提升到 24.17\%，时间 F1@0.5 从 3.04\% 提升到 49.08\%。这说明图像侧“目标证据绑定”和结构化输出训练能够迁移到视频中对自身飞行片段的定位，通过加强对环境中动作相关的地标的感知能力来提升对地标相关动作的识别能力，尤其有利于原子行为这类边界更清晰的时序事件。
+\autoref{tab:optimization-video-transfer-results} 和 \autoref{fig:optimization-video-transfer} 表明，视频侧迁移具有明显的认知分化。对于自我状态认知，复合自我行为识别的语义主指标从 6.37\% 提升到 24.48\%，Temporal F1@0.5 从 1.31\% 提升到 26.90\%；原子自我行为识别的语义主指标从 10.00\% 提升到 24.17\%，Temporal F1@0.5 从 3.04\% 提升到 49.08\%，Mean tIoU 也从 2.82\% 提升到 43.96\%。这一结果说明，图像侧“目标证据绑定”和结构化输出训练能够迁移到视频中的部分自我状态任务。其原因在于，自我行为识别的判断对象通常与无人机相对地标的运动模式有关，例如接近、远离、环绕、上升或扫描。图像训练强化了模型对地标位置、相对方位和目标框证据的感知，使模型在视频帧序列中更容易捕捉“地标在视野中如何移动”这一动作线索；同时，原子行为通常具有更短、更清晰的时间边界，因此空间证据能力提升后更容易转化为时间区间定位收益。
 
-% 这里可以将可见性的时间区间信息、可见次数做个分析，是不是可见区间累计的占比提升了，但是没有能将可见性有效整合到一段完整的可见区间中，“跟踪”的能力不强，导致可见区间出现中断等情况。
-环境情况认知的迁移结果则相反。环境可见性推理的 Count Exact 从 33.89\% 下降到 31.35\%，Segment F1@0.5 从 45.18\% 下降到 24.23\%，时间 IoU 从 51.99\% 下降到 29.74\%。这说明图像任务优化提高了静态目标框证据质量，但没有自然学会“地标在视频中何时出现、持续多久、出现几次”的连续时间建模。换言之，空间证据学习可以迁移到部分自我行为定位，但不能直接替代环境可见性的时序整合能力。
+环境情况认知的迁移结果呈现另一种形态。环境可见性推理的 Count Accuracy 从 33.89\% 下降到 31.35\%，Segment F1@0.5 从 45.18\% 下降到 24.23\%，Mean tIoU 从 51.99\% 下降到 29.74\%。结合图像任务结果看，这一变化并不说明优化模型没有学到地标识别能力。相反，优化模型在自我参照位置推理和地标驱动动作决策中的选项准确率、BBox Acc@0.5 和 mIoU 均显著提升，说明其对静态图像以及逐帧观测中的地标外观、位置和目标框证据更加敏感。问题在于，环境可见性推理并不只要求模型在某一帧中“找到地标”，而是要求模型在整段视频中持续追踪同一地标，并判断它在视角变化、遮挡、距离变化和画面边缘截断条件下是否仍然构成连续可见。
+
+因此，图像侧证据能力的提升可能强化了模型对局部可见帧的检测，却没有同步强化跨帧连续性建模。环境可见性任务需要模型结合自身飞行状态理解画面变化的原因，例如无人机是在接近、远离、环绕还是上升观察；同时还需要把相邻可见帧整合为完整时间区间，并避免把短暂遮挡或视角抖动误判为新的出现次数。当前训练奖励主要约束静态 BBox 与选项答案，没有直接约束跨帧目标一致性、可见区间合并和出现次数统计，因而优化模型可能更容易发现局部帧中的目标，却难以将局部证据稳定组织为视频级可见事件。该现象进一步说明，可靠的无人机双认知能力不能停留在单帧环境识别，还必须把环境情况认知与自我状态认知结合起来，通过飞行状态解释连续观测中的目标可见性变化。
+
+从两类视频任务对比来看，图像训练带来的迁移收益主要发生在“地标相关动作识别”而非“地标持续可见性整合”上。前者可以借助地标相对位置和画面运动趋势来定位与自身运动模式相匹配的片段，空间证据增强能够直接帮助识别动作边界；后者则需要更强的时序记忆、跨帧目标跟踪和片段合并能力，不能仅由静态目标框训练自然获得。后续若要改善环境可见性推理，需要进一步引入视频任务训练样本、跨帧目标一致性约束或时间区间级奖励，使模型不仅能够逐帧识别地标，还能结合无人机自身运动状态完成连续可见过程的整合。
 
 \subsection{跨媒介与双认知综合分析}
 
@@ -355,6 +314,8 @@ R = w_f R_{\text{format}} + w_s R_{\text{mcq}} + w_b R_{\text{bbox}},
 
 从无人机具身推理角度看，这一结果具有明确启发。可靠 UAV 多模态系统不能只在单张图像上判断正确方向或定位地标，也不能只在视频中粗略捕捉目标出现；它需要在自我状态认知和环境情况认知之间建立匹配关系，并在图像空间证据和视频时间证据之间保持稳定转换。优化模型证明了 UAV-DualCog-Train 能显著补强图像侧答案-证据一致性，同时也说明只依赖图像任务训练难以覆盖视频环境可见性推理。因此，后续优化应进一步引入视频任务样本或跨媒介一致性约束，使空间定位收益能够更稳健地迁移到时间区间证据恢复。
 
-% \subsection{本章小结}
+\section{本章小结}
 
-% 本章围绕第3章暴露出的结构性问题，系统整理了 UAV-DualCog 的能力优化方法、正式训练过程和最终任务级结果。首先，本文构建了与测试场景严格隔离、在任务类型与双认知分组上保持平衡的 UAV-DualCog-Train-V1 训练集，并将其转换为与 benchmark 对齐的多模态训练记录。其次，本文完成了基于 Qwen 3.5 4B 的多模态 LoRA 监督微调与联合 GRPO 优化方法，明确给出了训练参数、奖励结构、分辨率策略和工程组织方式。再次，本文在 Base 与最终导出的 GRPO 权重模型之间进行任务级对比，结果表明优化模型在图像任务上取得显著直接收益，选项准确率、BBox Acc@0.5 和 mIoU 分别提升 20.78、51.76 和 32.66 个百分点；在视频任务上，按三类任务 Acc 算术平均计算的全局准确率提升 9.91 个百分点，同时呈现迁移分化：自我行为识别与时间定位明显提升，而环境可见性计数与区间定位下降。由此可见，当前能力优化已经有效验证了“证据感知图像训练”对图像双认知能力的补强作用，同时也说明可靠无人机双认知模型仍需要进一步解决图像-视频之间的证据迁移与协同问题。
+本章围绕第3章暴露出的能力短板，系统介绍了 UAV-DualCog 的能力优化方法与实验结果。首先，本文构建了与测试场景严格隔离的 UAV-DualCog-Train 图像任务训练集，并将其转换为包含提示词、真实图像路径和标准 JSON completion 的多模态训练记录。该训练集在任务类型、难度等级和双认知分组上保持平衡，为模型学习“答案+目标框”的结构化输出提供了数据基础。
+
+其次，本文完成了基于 Qwen 3.5 4B 的两阶段能力优化流程：多模态 LoRA SFT 用于建立稳定的结构化答案输出能力，联合 GRPO 则通过格式奖励、答案奖励和目标框奖励进一步强化语义-证据一致性。训练过程完整产出可评测模型。任务级评测显示，优化模型在图像任务上获得显著直接收益，图像选项准确率、BBox Acc@0.5 和 mIoU 分别提升 20.78、51.76 和 32.66 个百分点；在视频任务上，全局准确率提升 9.91 个百分点，但收益主要集中在自我行为识别和时间定位，环境可见性推理仍出现下降。由此可见，证据感知图像训练能够有效补强图像双认知能力并产生部分跨媒介迁移，但可靠无人机多模态系统仍需要进一步提升视频时序整合和跨媒介证据协同能力。

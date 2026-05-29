@@ -284,7 +284,43 @@ dump JSONL files and integrity report
 \section{能力优化实现补充材料}
 \label{app:optimization-entry}
 
-第4章正文保留能力优化方法、关键参数、训练完整性和最终任务级评测结果。本附录补充实现入口、训练流程伪代码、完整性核查逻辑和奖励函数关键片段，用于说明方法已经落实为可执行训练链路。
+第4章正文保留能力优化方法、训练流程概述和任务级评测结果。本附录补充训练环境、运行记录、实现入口、训练流程伪代码、完整性核查逻辑和奖励函数关键片段，用于说明方法已经落实为可执行训练链路。
+
+\subsection{训练环境与运行记录}
+
+\begin{table}[htbp]
+    \centering
+    \caption{能力优化实验训练环境}
+    \label{tab:app-train-hardware}
+    \small
+    \begin{tabularx}{\textwidth}{@{}>{\centering\arraybackslash}p{3.0cm}>{\centering\arraybackslash}X@{}}
+        \toprule
+        资源项 & 配置 \\
+        \midrule
+        CPU & \(2\times\) AMD EPYC 7452，合计 128 vCPUs \\
+        内存 & 503 GiB \\
+        GPU & \(4\times\) NVIDIA GeForce RTX 4090，单卡 24 GB 显存 \\
+        训练框架 & PyTorch、Transformers、PEFT、TRL \\
+        训练方式 & 单机多卡多模态 LoRA SFT + 联合 GRPO \\
+        \bottomrule
+    \end{tabularx}
+\end{table}
+
+\begin{table}[htbp]
+    \centering
+    \caption{正式训练完成情况与核心过程指标}
+    \label{tab:app-train-run-summary}
+    \footnotesize
+    \setlength{\tabcolsep}{4pt}
+    \begin{tabularx}{\textwidth}{@{}p{1.9cm}>{\centering\arraybackslash}p{1.6cm}>{\centering\arraybackslash}p{1.6cm}>{\centering\arraybackslash}p{2.0cm}X@{}}
+        \toprule
+        阶段 & 完成步数 & 运行时间/h & 过程指标 & 说明 \\
+        \midrule
+        SFT & 237/237 & 4.05 & \makecell[c]{train loss\\0.6384} & 完成 3 个 epoch，验证集 \texttt{eval\_loss}=0.5666，图像长边上限为 720。 \\
+        Joint GRPO & 600/600 & 10.72 & \makecell[c]{tail-10 reward\\2.4016} & 奖励权重为 \((1.0,1.0,1.0)\)，后段奖励保持稳定，导出可评测权重。 \\
+        \bottomrule
+    \end{tabularx}
+\end{table}
 
 \begin{table}[htbp]
     \centering
@@ -300,7 +336,7 @@ dump JSONL files and integrity report
         \makecell[l]{\texttt{run\_grpo}\\\texttt{\_light.py}} & 输入训练 JSONL 与 SFT 检查点；输出 GRPO adapter、奖励指标与合并模型 & 实现联合 GRPO，在同一奖励函数中优化格式、答案和目标框质量。 \\
         \makecell[l]{\texttt{run\_full}\\\texttt{\_pipeline.sh}} & 管理数据快照、日志、检查点和两阶段调度 & 串联数据准备、SFT 与 Joint GRPO，形成单机多卡可复现训练流程。 \\
         \makecell[l]{\texttt{check\_training}\\\texttt{\_run.py}} & 输入运行目录；输出完整性报告 & 核查计划文件、日志、checkpoint、adapter 和合并模型产物是否完整。 \\
-        \makecell[l]{\texttt{evaluate}\\\texttt{\_transfer.py}} & 输入 Base/GRPO 权重与 benchmark 场景；输出评测结果与增益表 & 触发 Stage 3/4 评测并生成最终优化模型对比结果。 \\
+        \makecell[l]{\texttt{evaluate}\\\texttt{\_transfer.py}} & 输入 Base/GRPO 权重与 benchmark 场景；输出评测结果与增益表 & 触发 Stage 3/4 评测并生成优化模型对比结果。 \\
         \bottomrule
     \end{tabularx}
 \end{table}
@@ -309,7 +345,7 @@ dump JSONL files and integrity report
 
 \begin{verbatim}
 Input: UAV-DualCog-Train-V1 JSONL, Qwen 3.5 4B base model
-Output: SFT checkpoint and final GRPO checkpoint
+Output: SFT checkpoint and GRPO checkpoint
 
 Stage 1: SFT
     load train / valid JSONL
@@ -324,12 +360,12 @@ Stage 2: Joint GRPO
     generate JSON completions under multimodal model
     compute format reward + answer reward + bbox reward
     update LoRA adapters with group-relative optimization
-    export final adapter and merged model
+    export adapter and merged model
 \end{verbatim}
 
 \subsection{正式训练完整性核查逻辑}
 
-正式训练前进行了小样本链路验证：SFT 验证使用 8 条样本和 1 个优化步检查真实图像加载、前向反向传播和模型导出；GRPO 验证使用 4 条样本和 1 个优化步检查奖励计算、组相对优化和合并模型导出。该验证仅用于确认工程链路可执行，不作为能力提升结论。
+正式训练结束后，系统对运行目录进行完整性核查，重点确认数据快照、训练计划、日志文件、指标文件、checkpoint、LoRA adapter、合并模型和评测入口是否完整。该核查不用于证明能力提升，而用于保证第4章报告的训练过程能够追溯到明确的数据版本、参数配置和模型产物。
 
 \begin{verbatim}
 Input: training run directory
