@@ -11,7 +11,10 @@
 ]{nwputhesis}
 
 \usepackage{placeins}
-\captionsetup[figure]{justification=centering,singlelinecheck=true}
-\captionsetup[table]{justification=centering,singlelinecheck=true}
+\captionsetup[figure]{justification=centering,singlelinecheck=false}
+\captionsetup[table]{justification=centering,singlelinecheck=false}
+\renewcommand{\tabularxcolumn}[1]{m{#1}}
+\newcolumntype{U}[1]{>{\centering\arraybackslash}m{#1}}
+\newcolumntype{V}[1]{>{\raggedright\arraybackslash}m{#1}}
 
 \input{thesis-body}

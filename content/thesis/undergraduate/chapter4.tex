@@ -214,11 +214,11 @@ R = w_f R_{\text{format}} + w_s R_{\text{mcq}} + w_b R_{\text{bbox}},
     \caption{优化模型在图像双认知分支上的结果}
     \label{tab:optimization-image-cognition-results}
     \small
-    \begin{tabularx}{\textwidth}{@{}p{2.4cm}>{\centering\arraybackslash}p{1.45cm}>{\centering\arraybackslash}p{1.45cm}>{\centering\arraybackslash}p{1.45cm}>{\centering\arraybackslash}p{1.45cm}>{\centering\arraybackslash}p{1.45cm}>{\centering\arraybackslash}p{1.45cm}@{}}
+    \begin{tabularx}{\textwidth}{@{}V{2.9cm}*{6}{U{1.38cm}}@{}}
         \toprule
         认知分支 & \multicolumn{2}{c}{选项准确率} & \multicolumn{2}{c}{BBox Acc@0.5} & \multicolumn{2}{c}{mIoU} \\
         \cmidrule(lr){2-3}\cmidrule(lr){4-5}\cmidrule(l){6-7}
-        & 原始模型 & 优化模型 & 原始模型 & 优化模型 & 原始模型 & 优化模型 \\
+        & \makecell[c]{原始\\模型} & \makecell[c]{优化\\模型} & \makecell[c]{原始\\模型} & \makecell[c]{优化\\模型} & \makecell[c]{原始\\模型} & \makecell[c]{优化\\模型} \\
         \midrule
         自我状态认知 & 30.52\% & 39.31\% & 11.99\% & 70.65\% & 22.41\% & 59.64\% \\
         环境情况认知 & 47.46\% & 80.22\% & 6.54\% & 51.42\% & 17.83\% & 45.93\% \\
@@ -233,11 +233,11 @@ R = w_f R_{\text{format}} + w_s R_{\text{mcq}} + w_b R_{\text{bbox}},
     \caption{优化模型在四类图像任务上的直接收益}
     \label{tab:optimization-image-task-results}
     \small
-    \begin{tabularx}{\textwidth}{@{}p{3.0cm}>{\centering\arraybackslash}p{1.38cm}>{\centering\arraybackslash}p{1.38cm}>{\centering\arraybackslash}p{1.38cm}>{\centering\arraybackslash}p{1.38cm}>{\centering\arraybackslash}p{1.38cm}>{\centering\arraybackslash}p{1.38cm}@{}}
+    \begin{tabularx}{\textwidth}{@{}V{3.4cm}*{6}{U{1.30cm}}@{}}
         \toprule
         任务类型 & \multicolumn{2}{c}{选项准确率} & \multicolumn{2}{c}{BBox Acc@0.5} & \multicolumn{2}{c}{mIoU} \\
         \cmidrule(lr){2-3}\cmidrule(lr){4-5}\cmidrule(l){6-7}
-        & 原始模型 & 优化模型 & 原始模型 & 优化模型 & 原始模型 & 优化模型 \\
+        & \makecell[c]{原始\\模型} & \makecell[c]{优化\\模型} & \makecell[c]{原始\\模型} & \makecell[c]{优化\\模型} & \makecell[c]{原始\\模型} & \makecell[c]{优化\\模型} \\
         \midrule
         地标参照位置推理 & 30.86\% & 41.41\% & 12.79\% & 74.90\% & 23.14\% & 61.91\% \\
         未来观察预测 & 30.18\% & 37.21\% & 11.23\% & 66.41\% & 21.69\% & 57.36\% \\
@@ -265,11 +265,11 @@ R = w_f R_{\text{format}} + w_s R_{\text{mcq}} + w_b R_{\text{bbox}},
     \caption{优化模型在视频任务上的迁移结果}
     \label{tab:optimization-video-transfer-results}
     \small
-    \begin{tabularx}{\textwidth}{@{}X>{\centering\arraybackslash}p{1.55cm}>{\centering\arraybackslash}p{1.55cm}>{\centering\arraybackslash}p{1.55cm}>{\centering\arraybackslash}p{1.55cm}>{\centering\arraybackslash}p{1.55cm}>{\centering\arraybackslash}p{1.55cm}@{}}
+    \begin{tabularx}{\textwidth}{@{}V{3.3cm}*{6}{U{1.32cm}}@{}}
         \toprule
         任务类型 & \multicolumn{2}{c}{语义/计数主指标} & \multicolumn{2}{c}{Temporal F1@0.5} & \multicolumn{2}{c}{Mean tIoU} \\
         \cmidrule(lr){2-3}\cmidrule(lr){4-5}\cmidrule(l){6-7}
-        & 原始模型 & 优化模型 & 原始模型 & 优化模型 & 原始模型 & 优化模型 \\
+        & \makecell[c]{原始\\模型} & \makecell[c]{优化\\模型} & \makecell[c]{原始\\模型} & \makecell[c]{优化\\模型} & \makecell[c]{原始\\模型} & \makecell[c]{优化\\模型} \\
         \midrule
         复合自我行为识别 & 6.37\% & 24.48\% & 1.31\% & 26.90\% & 1.40\% & 30.05\% \\
         原子自我行为识别 & 10.00\% & 24.17\% & 3.04\% & 49.08\% & 2.82\% & 43.96\% \\
@@ -300,9 +300,9 @@ R = w_f R_{\text{format}} + w_s R_{\text{mcq}} + w_b R_{\text{bbox}},
     \caption{优化模型的跨媒介全局准确率对比}
     \label{tab:optimization-dual-score}
     \small
-    \begin{tabularx}{0.78\textwidth}{@{}X>{\centering\arraybackslash}p{2.3cm}>{\centering\arraybackslash}p{2.3cm}>{\centering\arraybackslash}p{2.3cm}@{}}
+    \begin{tabularx}{0.78\textwidth}{@{}U{2.1cm}*{3}{U{2.15cm}}@{}}
         \toprule
-        模型 & 图像全局准确率 & 视频全局准确率 & 图像-视频差值 \\
+        模型 & \makecell[c]{图像全局\\准确率} & \makecell[c]{视频全局\\准确率} & \makecell[c]{图像-视频\\差值} \\
         \midrule
         原始模型 & 38.99\% & 16.75\% & 22.24 pp \\
         优化模型 & 59.77\% & 26.67\% & 33.10 pp \\
