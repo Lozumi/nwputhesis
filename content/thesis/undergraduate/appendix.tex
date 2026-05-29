@@ -4,7 +4,28 @@
 \section{数据集及构建补充材料}
 \label{app:dataset-construction}
 
-本附录补充 UAV-DualCog 测试基准的数据规模、任务结构和构建流程。
+本附录补充 UAV-DualCog 测试基准的数据规模、任务结构、构建流程、评测协议与能力优化实现细节。相关资源已公开发布，便于对测试基准、代码实现和数据样本进行复核。
+
+\subsection{公开发布与复现资源}
+\label{app:release-resources}
+
+UAV-DualCog 的项目站点、代码仓库和数据集已分别发布，三类资源的作用见\autoref{tab:app-release-resources}。其中，项目站点用于集中展示测试基准、评测协议、分析结果和使用说明；代码仓库提供数据构建、评测和能力优化的主要实现；ModelScope 数据集页面提供测试基准的数据下载入口。
+
+\begin{table}[htbp]
+    \centering
+    \caption{UAV-DualCog 公开发布资源}
+    \label{tab:app-release-resources}
+    \small
+    \begin{tabularx}{\textwidth}{@{}p{2.5cm}X X@{}}
+        \toprule
+        资源类型 & 地址 & 作用说明 \\
+        \midrule
+        测试基准站点 & \url{https://uav-dualcog.lozumi.com/} & 展示基准设计、评测协议、排行榜、实验分析和使用说明。 \\
+        代码仓库 & \url{https://github.com/SmartDianLab/UAV-DualCog} & 提供数据构建工具链、评测脚本、训练实现和复现实验所需配置。 \\
+        数据集页面 & \url{https://www.modelscope.cn/datasets/Lozumi/UAV-DualCog} & 发布 UAV-DualCog 数据集资源，用于下载测试基准及相关数据文件。 \\
+        \bottomrule
+    \end{tabularx}
+\end{table}
 
 \begin{table}[htbp]
     \centering
@@ -65,7 +86,7 @@
 
 \subsection{构建工具链可视化工作台界面}
 
-为补充正文第3章对阶段2、阶段3和阶段4实现过程的说明，本节给出数据构建 Web 工作台中的代表性界面截图。该工作台用于人工复核、任务定义、任务生成、数据浏览、实验调度和指标检查等交互环节；批量生成与导出仍由命令行工具链统一调度。为避免重复展示，本节省略布局和信息结构高度相似的候选复核、单样本结果翻页等界面，仅保留能够体现不同构建环节职责的页面截图。界面截图主要说明各阶段的可视化复核与质量控制方式，而不作为实验结果数据来源。
+为补充正文第3章对阶段2、阶段3和阶段4实现过程的说明，本节收录数据构建 Web 工作台中的代表性界面截图。该工作台面向人工复核、任务定义、样本浏览、实验配置和指标检查等交互环节；大规模样本构建与导出仍由命令行工具链统一调度。下列截图覆盖不同构建环节的主要职责，用于说明可视化复核与质量控制方式，而不作为实验结果数据来源。
 
 \begin{figure}[!htbp]
     \centering
@@ -83,7 +104,7 @@
     \label{fig:app-stage3-behavior-library}
 \end{figure}
 
-\autoref{fig:app-stage3-behavior-library} 展示了阶段3的飞行行为库界面。左侧列出复合行为和原子行为定义，右侧展示所选行为的参数范围、默认值、相机模式和生成说明。该界面使复合行为、原子行为和轨迹参数之间的关系显式化，有助于检查层次化飞行模式是否符合视频任务设计，并为后续 Mission Generation 页面提供可复用的行为模板。
+\autoref{fig:app-stage3-behavior-library} 展示了阶段3的飞行行为库界面。左侧列出复合行为和原子行为定义，右侧展示所选行为的参数范围、默认值、相机模式和生成说明。该界面使复合行为、原子行为和轨迹参数之间的关系显式化，有助于检查层次化飞行模式是否符合视频任务设计，并形成可复用的行为模板。
 
 \begin{figure}[!htbp]
     \centering
@@ -92,7 +113,7 @@
     \label{fig:app-stage3-mission-generation}
 \end{figure}
 
-\autoref{fig:app-stage3-mission-generation} 展示了阶段3视频任务构建的任务生成界面。该界面围绕场景、地标选择、复合行为模板、原子行为序列、轨迹参数和媒体导出设置组织任务生成流程，用于把阶段2得到的有效地标资产转换为可执行飞行任务。通过该界面可以执行任务选择、轨迹生成、预览审批和任务视频导出等操作，并与后续候选复核、清单生成和指标统计页面衔接。
+\autoref{fig:app-stage3-mission-generation} 展示了阶段3视频任务构建的任务生成界面。该界面围绕场景、地标选择、复合行为模板、原子行为序列、轨迹参数和媒体导出设置组织任务构建信息，用于把阶段2得到的有效地标资产转换为可执行飞行任务。该界面同时记录任务选择、轨迹配置、预览复核和视频导出相关信息，并与后续清单核查和指标统计环节衔接。
 
 \begin{figure}[!htbp]
     \centering
@@ -101,7 +122,7 @@
     \label{fig:app-stage3-dataset-browser}
 \end{figure}
 
-\autoref{fig:app-stage3-dataset-browser} 展示了阶段3生成后的样本浏览界面。左侧按照样本编号、任务类型、难度和地标编号列出任务清单，右侧给出样本级元数据、地标参考图像、飞行描述、视频规格和证据字段。该界面用于检查视频任务是否同时包含语义问题、地标视觉证据、行为描述和时间监督信息，避免任务清单与媒体文件、参考图像或标注区间脱节。
+\autoref{fig:app-stage3-dataset-browser} 展示了阶段3的视频任务样本浏览界面。左侧按照样本编号、任务类型、难度和地标编号列出任务清单，右侧给出样本级元数据、地标参考图像、飞行描述、视频规格和证据字段。该界面用于检查视频任务是否同时包含语义问题、地标视觉证据、行为描述和时间监督信息，避免任务清单与媒体文件、参考图像或标注区间脱节。
 
 \begin{figure}[!htbp]
     \centering
@@ -119,7 +140,7 @@
     \label{fig:app-stage4-task-generation}
 \end{figure}
 
-\autoref{fig:app-stage4-task-generation} 展示了阶段4图像任务生成界面。该界面按场景、任务类型、难度、地标类别和采样数量组织图像 QA 样本生成，右侧同时给出当前场景可用地标、任务可用性和最新实验摘要。该设计便于在生成前检查地标是否支持四类图像任务。
+\autoref{fig:app-stage4-task-generation} 展示了阶段4图像任务生成界面。该界面按场景、任务类型、难度、地标类别和采样数量组织图像 QA 样本构建信息，右侧同时给出场景可用地标、任务可用性和实验摘要。该设计便于在样本构建前检查地标是否支持四类图像任务。
 
 \begin{figure}[!htbp]
     \centering
@@ -128,7 +149,7 @@
     \label{fig:app-stage4-data-browser}
 \end{figure}
 
-\autoref{fig:app-stage4-data-browser} 展示了阶段4生成后的图像任务浏览界面。左侧为任务清单和任务组合统计，右侧同步展示样本摘要、系统提示词、用户提示词、候选选项和目标框字段。该界面用于核查参考图像、查询图像、候选答案、提示词协议和目标框监督是否一致，尤其适合检查自我状态认知任务和环境情况认知任务是否遵循同一输出契约。
+\autoref{fig:app-stage4-data-browser} 展示了阶段4的图像任务浏览界面。左侧为任务清单和任务组合统计，右侧同步展示样本摘要、系统提示词、用户提示词、候选选项和目标框字段。该界面用于核查参考图像、查询图像、候选答案、提示词协议和目标框监督是否一致，尤其适合检查自我状态认知任务和环境情况认知任务是否遵循同一输出契约。
 
 \begin{figure}[!htbp]
     \centering
@@ -137,7 +158,7 @@
     \label{fig:app-stage4-experiments}
 \end{figure}
 
-\autoref{fig:app-stage4-experiments} 展示了阶段4图像任务的实验调度界面。该界面统一设置样本清单、上传分辨率、JPEG 压缩质量、并发数、超时限制和待评测模型，并在右侧显示实验作业状态。
+\autoref{fig:app-stage4-experiments} 展示了阶段4图像任务的实验配置界面。该界面记录样本清单、上传分辨率、JPEG 压缩质量、并发数、超时限制和待评测模型等实验条件，并在同一视图中呈现实验队列状态。
 
 \begin{figure}[!htbp]
     \centering
@@ -146,7 +167,7 @@
     \label{fig:app-stage4-metrics}
 \end{figure}
 
-\autoref{fig:app-stage4-metrics} 展示了阶段4图像任务指标汇总界面。该界面从样本级输出中聚合解析成功率、选项准确率、BBox Acc@0.5、BBox mIoU 和平均延迟，并进一步按照认知分支、任务类型和难度分组。该页面对应正文中图像任务实验表格的指标来源，也便于发现某一任务分支或难度设置下的系统性弱点。
+\autoref{fig:app-stage4-metrics} 展示了阶段4图像任务指标汇总界面。该界面从样本级输出中聚合解析成功率、选项准确率、BBox Acc@0.5、BBox mIoU 和平均延迟，并进一步按照认知分支、任务类型和难度分组。该界面对应正文中图像任务实验表格的指标来源，也便于发现某一任务分支或难度设置下的系统性弱点。
 
 \subsection{四阶段构建流程伪代码}
 
